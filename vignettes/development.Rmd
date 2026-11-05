@@ -1,0 +1,87 @@
+---
+title: "Development and testing"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Development and testing}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+## Package layout
+
+| File | Purpose |
+|---|---|
+| `R/ingest.R` | Data sources, parquet import/export, data contract |
+| `R/preprocess.R` | Pre-processing per dataset (from the templates) |
+| `R/ae_dictionary.R` | Readable adverse event names |
+| `R/data_pipeline.R` | `load_lumen_data()`: pipeline + caches |
+| `R/teal_data.R` | `teal_data` object, reproducible code, join keys |
+| `R/app_modules.R` | Module configuration (one function per tab group) |
+| `R/app_filters.R` | Module-specific filters / starting populations |
+| `R/app_ui.R` | Header (dark mode toggle) and footer |
+| `R/run_app.R` | `lumen_app()`, `run_app()` |
+| `R/options.R` | `?lumen_options` |
+| `inst/templates/` | The original teal.gallery templates |
+| `app.R` | Launcher for RStudio "Run App" / Posit Connect |
+
+## Everyday workflow
+
+```{r}
+devtools::load_all()   # load the package from source
+run_app()
+
+devtools::document()   # regenerate man/ and NAMESPACE from roxygen comments
+devtools::test()       # run the test suite
+devtools::check()      # full R CMD check
+```
+
+## Adding or changing a module
+
+Modules live in `R/app_modules.R`, in the function of their tab group
+(`modules_exploratory()`, `modules_safety()`, `modules_efficacy()`). Keep
+labels unique across the app: module-specific filters are keyed by label,
+and `lumen_modules()` stops if two modules share one. Safety and efficacy
+modules automatically get their starting population (see `R/app_filters.R`).
+
+If a new module needs a dataset column that is not yet in the contract, add it
+to `adam_contract()`; if it pre-selects a value, add it to
+`adam_app_defaults()`.
+
+## Tests
+
+The suite (`tests/testthat/`) checks every step:
+
+| File | Covers |
+|---|---|
+| `test-ingest.R` | every source, synthetic settings and reproducibility, parquet naming and round trip |
+| `test-contract.R` | each rule of the data contract on tiny hand-made data |
+| `test-preprocess.R` | invariants of every derived dataset |
+| `test-ae-dictionary.R` | AE decoding (one-to-one, unknown codes, labels kept) |
+| `test-data-pipeline.R` | memory/disk/fresh caches, refresh, invalidation, global copies |
+| `test-teal-data.R` | datasets, join keys, reproducible code, error messages |
+| `test-app.R` | app builds without warnings, UI renders, labels, filter mapping |
+
+**Consistency whatever the data.** The data invariants run on several
+*different* datasets - the bundled data, two synthetic draws of different size
+and seed, and a parquet round trip - so they test properties of the pipeline,
+not one snapshot. Run a subset with an environment variable:
+
+```{r}
+Sys.setenv(LUMEN_TEST_SCENARIOS = "bundled")   # quick run
+devtools::test()
+```
+
+The parquet tests need *arrow* and are skipped without it. Tests use temporary
+cache folders and a throw-away memory cache; they never touch your real cache
+or Global Environment.
+
+## Deployment
+
+`app.R` at the project root loads the package with `pkgload::load_all()` and
+calls `run_app()`, so the project folder can be deployed as a Shiny app
+(e.g. `rsconnect::deployApp()`). `R/_disable_autoload.R` stops Shiny from also
+sourcing `R/` on its own.

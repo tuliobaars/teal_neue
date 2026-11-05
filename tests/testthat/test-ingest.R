@@ -1,5 +1,3 @@
-testthat::local_edition(3)
-
 # ---- Every data source produces contract-compliant raw data -----------------
 
 for (sc in lumen_scenarios()) {
@@ -8,7 +6,7 @@ for (sc in lumen_scenarios()) {
     err <- scenario_error(sc)
     expect_null(err, info = if (!is.null(err)) conditionMessage(err))
   })
-  
+
   test_that(sprintf("[%s] raw data has every contract dataset and column", sc), {
     raw <- scenario(sc)$raw
     expect_true(all(names(adam_contract()) %in% names(raw)))
@@ -18,11 +16,11 @@ for (sc in lumen_scenarios()) {
       expect_gt(nrow(raw[[ds]]), 0)
     }
   })
-  
+
   test_that(sprintf("[%s] ingestion raised no contract or default-value warnings", sc), {
     expect_identical(scenario(sc)$warnings[grepl("Subjects without|default selections", scenario(sc)$warnings)], character(0))
   })
-  
+
   test_that(sprintf("[%s] app default selections exist in the data", sc), {
     missing <- suppressWarnings(check_app_defaults(scenario(sc)$raw))
     expect_identical(as.character(missing), character(0))

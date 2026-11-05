@@ -1,63 +1,56 @@
-# =============================================================================
-# Lumen - Data pipeline: ingestion -> pre-processing -> cache
-#
-# `load_lumen_data()` is the single entry point. It returns the analysis-ready
-# datasets, using (in order) the first cache that is still valid:
-#
-#   1. session memory  (hidden `.lumen_cache` object in the Global Environment;
-#                       makes repeated runApp() calls in one R session instant)
-#   2. disk            (`cache/lumen_adam.rds`; survives R restarts)
-#   3. fresh build     (ingest_adam() -> preprocess_adam(), then caches)
-#
-# Caches are invalidated automatically when R/ingest.R or R/preprocess.R
-# change, or when the data source changes (source type, synthetic settings,
-# {random.cdisc.data} version, or any parquet file's name/size/modification time).
-#
-# Options (set them before runApp(), or pass the arguments directly):
-#   lumen.data_source   "bundled" "bundled" | "synthetic" | "parquet" (see ingest.R)
-#   lumen.synthetic     list()    e.g. list(N = 200, seed = 7)
-#   lumen.parquet_dir   "cache"   Folder with adsl.parquet, adae.parquet, ...
-#   lumen.use_cache     TRUE      Use/maintain the memory + disk caches
-#   lumen.refresh_cache FALSE     Force re-ingestion and re-processing
-#   lumen.cache_global  FALSE     Copy every dataset (ADSL, ADAE, ...) into the
-#                                 Global Environment for easy console access
-#   lumen.cache_dir     "cache"
-#
-# Standalone use (no app), e.g. to explore the data in the console:
-#   source("R/ingest.R"); source("R/preprocess.R"); source("R/data_pipeline.R")
-#   load_lumen_data(cache_global = TRUE)
-#   head(ADSL)
-#
-# This file only defines functions (no side effects when sourced).
-# =============================================================================
+# Data pipeline: ingestion -> pre-processing -> cache.
 
 #' Load the analysis-ready Lumen datasets
 #'
-#' @param source,synthetic,parquet_dir Data source settings (see ingest.R).
-#' @param use_cache Logical. Use (and maintain) the memory and disk caches.
-#' @param refresh Logical. Ignore existing caches and rebuild from the source.
-#' @param cache_global Logical. Also assign every dataset into `global_env`.
-#' @param cache_dir Directory for the on-disk cache.
-#' @param global_env Environment for the session cache and the dataset copies
-#'   (the Global Environment; tests pass a throw-away environment).
-#' @return List with `datasets` (named list of data.frames), `meta`, `source`
-#'   (resolved source settings), `signature` and `created`.
+#' The single entry point to the data. Returns the analysis-ready datasets,
+#' using (in order) the first cache that is still valid:
+#' 1. session memory (kept inside the package for the R session; makes
+#'    repeated app launches instant),
+#' 2. disk (`lumen_adam.rds` in `cache_dir`; survives R restarts),
+#' 3. a fresh build: [ingest_adam()] then [preprocess_adam()], which is cached.
+#'
+#' Caches are invalidated automatically when the data-producing code changes
+#' (package version or the ingestion/pre-processing functions) or when the data
+#' source changes (source type, synthetic settings, 'random.cdisc.data'
+#' version, or any parquet file's name, size or modification time).
+#'
+#' @inheritParams ingest_adam
+#' @param use_cache Use (and maintain) the memory and disk caches?
+#' @param refresh Ignore existing caches and rebuild from the source?
+#' @param cache_global Also copy every dataset (`ADSL`, `ADAE`, ...) into
+#'   `global_env` for easy console access?
+#' @param cache_dir Folder of the disk cache.
+#' @param global_env Environment receiving the dataset copies when
+#'   `cache_global = TRUE`.
+#' @param memory_env Environment holding the session memory cache.
+#' @return A list with `datasets` (named list of data.frames), `meta`,
+#'   `source` (the resolved source settings), `signature` and `created`.
+#' @seealso [lumen_options], [lumen_clear_cache()]
+#' @examples
+#' \donttest{
+#' lumen <- load_lumen_data(cache_dir = tempdir())
+#' names(lumen$datasets)
+#' # second call: served from the session memory cache
+#' lumen <- load_lumen_data(cache_dir = tempdir())
+#' }
+#' @export
 load_lumen_data <- function(source = getOption("lumen.data_source", "bundled"),
                             synthetic = getOption("lumen.synthetic", list()),
                             parquet_dir = getOption("lumen.parquet_dir", "cache"),
                             use_cache = getOption("lumen.use_cache", TRUE),
                             refresh = getOption("lumen.refresh_cache", FALSE),
                             cache_global = getOption("lumen.cache_global", FALSE),
-                            cache_dir = getOption("lumen.cache_dir", "cache"),
-                            global_env = globalenv()) {
+                            cache_dir = lumen_cache_dir_default(),
+                            global_env = globalenv(),
+                            memory_env = the) {
   t0 <- Sys.time()
   config <- lumen_source_config(source, synthetic, parquet_dir)
   signature <- lumen_data_signature(config)
   cache_file <- file.path(cache_dir, "lumen_adam.rds")
   result <- NULL
-  
+
   if (isTRUE(use_cache) && !isTRUE(refresh)) {
-    mem <- get0(".lumen_cache", envir = global_env, inherits = FALSE)
+    mem <- get0("data_cache", envir = memory_env, inherits = FALSE)
     if (is.list(mem) && identical(mem$signature, signature)) {
       result <- mem
       from <- "session memory cache"
@@ -69,7 +62,7 @@ load_lumen_data <- function(source = getOption("lumen.data_source", "bundled"),
       }
     }
   }
-  
+
   if (is.null(result)) {
     raw <- ingest_adam(config$source, config$synthetic, config$parquet_dir)
     result <- preprocess_adam(raw)
@@ -87,16 +80,16 @@ load_lumen_data <- function(source = getOption("lumen.data_source", "bundled"),
       )
     }
   }
-  
+
   if (isTRUE(use_cache)) {
-    assign(".lumen_cache", result, envir = global_env)
+    assign("data_cache", result, envir = memory_env)
   }
-  
+
   if (isTRUE(cache_global)) {
     list2env(result$datasets, envir = global_env)
     message("[lumen] Datasets available in the Global Environment: ", toString(names(result$datasets)))
   }
-  
+
   message(sprintf(
     "[lumen] %d datasets ready from %s in %.1fs",
     length(result$datasets), from, as.numeric(difftime(Sys.time(), t0, units = "secs"))
@@ -104,22 +97,49 @@ load_lumen_data <- function(source = getOption("lumen.data_source", "bundled"),
   result
 }
 
-#' Cache signature: changes whenever the data-producing code or the source changes
-lumen_data_signature <- function(config = lumen_source_config(),
-                                 files = file.path("R", c("ingest.R", "preprocess.R")),
-                                 cache_version = 2L) {
-  paste(c(cache_version, unname(tools::md5sum(files)), lumen_source_fingerprint(config)), collapse = "|")
-}
-
-#' Remove the memory and disk caches (and optionally the dataset copies)
-lumen_clear_cache <- function(cache_dir = getOption("lumen.cache_dir", "cache"),
+#' Remove the Lumen data caches
+#'
+#' Clears the session memory cache and deletes the disk cache file;
+#' optionally also removes the dataset copies made with `cache_global = TRUE`.
+#'
+#' @inheritParams load_lumen_data
+#' @param remove_global_datasets Also remove `ADSL`, `ADAE`, ... from
+#'   `global_env`?
+#' @return Invisibly `TRUE`.
+#' @examples
+#' \donttest{
+#' lumen_clear_cache(cache_dir = tempdir())
+#' }
+#' @export
+lumen_clear_cache <- function(cache_dir = lumen_cache_dir_default(),
                               remove_global_datasets = FALSE,
-                              global_env = globalenv()) {
-  mem <- get0(".lumen_cache", envir = global_env, inherits = FALSE)
+                              global_env = globalenv(),
+                              memory_env = the) {
+  mem <- get0("data_cache", envir = memory_env, inherits = FALSE)
   if (isTRUE(remove_global_datasets) && is.list(mem)) {
     suppressWarnings(rm(list = names(mem$datasets), envir = global_env))
   }
-  if (!is.null(mem)) rm(".lumen_cache", envir = global_env)
+  if (!is.null(mem)) rm("data_cache", envir = memory_env)
   unlink(file.path(cache_dir, "lumen_adam.rds"))
   invisible(TRUE)
+}
+
+#' Cache signature: changes whenever the data-producing code or the source changes
+#' @noRd
+lumen_data_signature <- function(config = lumen_source_config(),
+                                 code = lumen_code_fingerprint(),
+                                 cache_version = 3L) {
+  paste(c(cache_version, code, lumen_source_fingerprint(config)), collapse = "|")
+}
+
+#' Hash of the package version and of every function that produces data
+#' @noRd
+lumen_code_fingerprint <- function() {
+  ns <- environment(lumen_code_fingerprint)
+  pattern <- "^(ingest_|preprocess_|derive_|decode_ae_|ae_|adsl_character_vars$|recode_column$|synthetic_settings$)"
+  fns <- sort(grep(pattern, ls(ns, all.names = TRUE), value = TRUE))
+  rlang::hash(list(
+    version = as.character(utils::packageVersion("lumen")),
+    code = lapply(mget(fns, envir = ns), deparse)
+  ))
 }

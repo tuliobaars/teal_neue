@@ -6,3 +6,7 @@ cache/*
 renv/*
 .DS_Store
 .git/*
+inst/doc
+/doc/
+/Meta/
+docs/

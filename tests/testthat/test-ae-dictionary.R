@@ -1,5 +1,3 @@
-testthat::local_edition(3)
-
 code_depth <- function(code) lengths(strsplit(code, ".", fixed = TRUE))
 
 test_that("dictionary names are unique within each hierarchy level (no merged AE groups)", {
@@ -49,13 +47,13 @@ test_that("recoding keeps factor levels order, NA and column labels", {
   expect_identical(levels(out), c("Nausea", "Diarrhoea"))
   expect_identical(as.character(out), c("Nausea", "Diarrhoea", NA))
   expect_identical(attr(out, "label"), "Dictionary-Derived Term")
-  
+
   ch <- c("cl A", "cl B", "cl A")
   attr(ch, "label") <- "SOC"
   out <- recode_column(ch, decode_ae_values)
   expect_identical(as.vector(out), c("Gastrointestinal disorders", "Cardiovascular disorders", "Gastrointestinal disorders"))
   expect_identical(attr(out, "label"), "SOC")
-  
+
   expect_identical(recode_column(1:3, decode_ae_values), 1:3)
 })
 

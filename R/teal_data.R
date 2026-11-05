@@ -1,112 +1,109 @@
-# =============================================================================
-# Lumen - teal_data object
-#
-# Wraps the data pipeline (ingest.R -> preprocess.R -> data_pipeline.R) in a
-# `teal_data` object. The code recorded here is what teal shows under
-# "Show R code", so it is kept short and reproducible: it sources the pipeline
-# scripts and calls `load_lumen_data()` (which uses the cache when valid).
-#
-# This file only defines functions (no side effects when sourced).
-# =============================================================================
+# The teal_data object: datasets + reproducible code + join keys.
 
-#' Join keys: standard CDISC keys + ADRS_EFF (same keys as ADRS, child of ADSL)
+#' Build the app's teal_data object
+#'
+#' Wraps [load_lumen_data()] in a `teal_data` object with join keys.
+#' `lumen_join_keys()` returns the standard CDISC keys for the standard
+#' datasets plus explicit keys for the two derived datasets (`ADRS_EFF` and
+#' `ADLBPCA`), which are not part of the CDISC defaults.
+#'
+#' Steps:
+#' 1. Run the data pipeline in plain R, so any ingestion or pre-processing
+#'    error is raised with a normal traceback (and the cache is filled).
+#' 2. Record the reproducible code shown under "Show R code". It calls
+#'    `lumen::load_lumen_data()` with the *resolved* source settings written
+#'    out (e.g. the synthetic seed), so it reproduces the same data in a new
+#'    session. In the app session it is served from the memory cache.
+#' 3. If the recorded code fails, stop with its real error message (teal
+#'    returns code errors as a `qenv.error` object instead of raising them).
+#'
+#' @inheritParams load_lumen_data
+#' @return `build_lumen_teal_data()`: a `teal_data` object with 13 datasets
+#'   and join keys. `lumen_join_keys()`: a `join_keys` object.
+#' @examples
+#' \donttest{
+#' data <- build_lumen_teal_data(cache_global = FALSE)
+#' names(data)
+#' teal.data::join_keys(data)
+#' }
+#' @export
+build_lumen_teal_data <- function(source = getOption("lumen.data_source", "bundled"),
+                                  synthetic = getOption("lumen.synthetic", list()),
+                                  parquet_dir = getOption("lumen.parquet_dir", "cache"),
+                                  cache_global = getOption("lumen.cache_global", FALSE)) {
+  # 1. Plain-R pipeline run (errors surface normally); resolves the settings
+  config <- lumen_source_config(source, synthetic, parquet_dir)
+  load_lumen_data(config$source, config$synthetic, config$parquet_dir, cache_global = cache_global)
+
+  # 2. Reproducible teal code
+  data <- teal.data::teal_data()
+  data <- teal.code::eval_code(data, lumen_library_code())
+  data <- within(
+    data,
+    {
+      .lumen <- lumen::load_lumen_data(
+        source = LUMEN_SOURCE,
+        synthetic = LUMEN_SYNTHETIC,
+        parquet_dir = LUMEN_PARQUET_DIR,
+        cache_global = FALSE
+      )
+      ADSL <- .lumen$datasets$ADSL
+      ADRS <- .lumen$datasets$ADRS
+      ADRS_EFF <- .lumen$datasets$ADRS_EFF
+      ADLB <- .lumen$datasets$ADLB
+      ADLBPCA <- .lumen$datasets$ADLBPCA
+      ADTTE <- .lumen$datasets$ADTTE
+      ADQS <- .lumen$datasets$ADQS
+      ADAE <- .lumen$datasets$ADAE
+      ADAETTE <- .lumen$datasets$ADAETTE
+      ADEX <- .lumen$datasets$ADEX
+      ADEG <- .lumen$datasets$ADEG
+      ADVS <- .lumen$datasets$ADVS
+      ADCM <- .lumen$datasets$ADCM
+    },
+    LUMEN_SOURCE = config$source,
+    LUMEN_SYNTHETIC = config$synthetic,
+    LUMEN_PARQUET_DIR = config$parquet_dir
+  )
+
+  # 3. Surface teal-code errors instead of passing a qenv.error along
+  if (inherits(data, "qenv.error")) {
+    stop("[lumen] The teal data code failed:\n", conditionMessage(data), call. = FALSE)
+  }
+
+  teal.data::join_keys(data) <- lumen_join_keys()
+  data
+}
+
+#' @rdname build_lumen_teal_data
+#' @export
 lumen_join_keys <- function() {
   c(
     teal.data::default_cdisc_join_keys[c(
-      "ADSL", "ADRS", "ADLB", "ADLBPCA", "ADTTE", "ADQS",
+      "ADSL", "ADRS", "ADLB", "ADTTE", "ADQS",
       "ADAE", "ADAETTE", "ADEX", "ADEG", "ADVS", "ADCM"
     )],
     teal.data::join_keys(
+      # efficacy response subset: same keys as ADRS
       teal.data::join_key("ADRS_EFF", keys = c("STUDYID", "USUBJID", "PARAMCD", "AVISIT")),
-      teal.data::join_key("ADSL", "ADRS_EFF", keys = c("STUDYID", "USUBJID"))
+      teal.data::join_key("ADSL", "ADRS_EFF", keys = c("STUDYID", "USUBJID")),
+      # wide lab data for the PCA module: one row per subject
+      teal.data::join_key("ADLBPCA", keys = c("STUDYID", "USUBJID")),
+      teal.data::join_key("ADSL", "ADLBPCA", keys = c("STUDYID", "USUBJID"))
     )
   )
 }
 
-#' Build the teal_data object used by app.R
-#'
-#' Steps:
-#'   1. Pre-flight: check the pipeline scripts are reachable from the working
-#'      directory (the teal code sources them with relative paths).
-#'   2. Run the pipeline in plain R. Any ingestion/pre-processing error is
-#'      raised here with a normal traceback, the caches are filled and - if
-#'      `lumen.cache_global` is TRUE - the datasets are copied to the Global
-#'      Environment.
-#'   3. Record the reproducible teal code. It re-uses the session cache filled
-#'      in step 2, so the pipeline is not run twice.
-#'   4. If the teal code fails, stop with the *real* error message. (teal code
-#'      errors are returned as a `qenv.error` object rather than raised; passing
-#'      that object on hides the cause behind a misleading `join_keys<-` error.)
-build_lumen_teal_data <- function() {
-  # 1. Pre-flight
-  pipeline_files <- file.path("R", c("ingest.R", "preprocess.R", "data_pipeline.R"))
-  missing_files <- pipeline_files[!file.exists(pipeline_files)]
-  if (length(missing_files)) {
-    stop(
-      "[lumen] Data pipeline scripts not found: ", toString(missing_files),
-      "\nThe working directory must be the project folder (currently: ", getwd(), ").",
-      call. = FALSE
-    )
-  }
-  
-  # 2. Plain-R pipeline run (errors surface normally)
-  pipeline <- new.env()
-  for (f in pipeline_files) sys.source(f, envir = pipeline, keep.source = FALSE)
-  pipeline$load_lumen_data()
-  
-  # 3. Reproducible teal code
-  data <- teal.data::teal_data()
-  data <- within(data, {
-    # Packages used by the code that the analysis modules generate.
-    # NOTE: MASS must be attached *before* dplyr, otherwise MASS::select()
-    # masks dplyr::select().
-    library(MASS)
-    library(dplyr)
-    library(tidyr)
-    library(ggExtra)
-    library(ggpmisc)
-    library(ggpp)
-    library(goftest)
-    library(gridExtra)
-    library(htmlwidgets)
-    library(jsonlite)
-    library(lattice)
-    library(rlang)
-    library(rtables)
-    library(nestcolor)
-    library(broom)
-    library(colourpicker)
-    library(sparkline)
-    
-    # Ingestion + pre-processing (see R/ingest.R and R/preprocess.R).
-    # Served from cache when the pipeline code has not changed.
-    .lumen <- local({
-      source("R/ingest.R", local = TRUE)
-      source("R/preprocess.R", local = TRUE)
-      source("R/data_pipeline.R", local = TRUE)
-      load_lumen_data(cache_global = FALSE)
-    })
-    
-    ADSL <- .lumen$datasets$ADSL
-    ADRS <- .lumen$datasets$ADRS
-    ADRS_EFF <- .lumen$datasets$ADRS_EFF
-    ADLB <- .lumen$datasets$ADLB
-    ADLBPCA <- .lumen$datasets$ADLBPCA
-    ADTTE <- .lumen$datasets$ADTTE
-    ADQS <- .lumen$datasets$ADQS
-    ADAE <- .lumen$datasets$ADAE
-    ADAETTE <- .lumen$datasets$ADAETTE
-    ADEX <- .lumen$datasets$ADEX
-    ADEG <- .lumen$datasets$ADEG
-    ADVS <- .lumen$datasets$ADVS
-    ADCM <- .lumen$datasets$ADCM
-  })
-  
-  # 4. Surface teal-code errors instead of passing a qenv.error along
-  if (inherits(data, "qenv.error")) {
-    stop("[lumen] The teal data code failed:\n", conditionMessage(data), call. = FALSE)
-  }
-  
-  teal.data::join_keys(data) <- lumen_join_keys()
-  data
+#' Packages used by the code the analysis modules generate (attached in the
+#' teal code so "Show R code" is runnable on its own).
+#' NOTE: MASS must be attached *before* dplyr, otherwise MASS::select() masks
+#' dplyr::select().
+#' @noRd
+lumen_library_code <- function() {
+  pkgs <- c(
+    "MASS", "dplyr", "tidyr", "ggExtra", "ggpmisc", "ggpp", "goftest", "gridExtra",
+    "htmlwidgets", "jsonlite", "lattice", "rlang", "rtables", "nestcolor", "broom",
+    "colourpicker", "sparkline"
+  )
+  paste0("library(", pkgs, ")", collapse = "\n")
 }

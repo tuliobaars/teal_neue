@@ -1,5 +1,3 @@
-testthat::local_edition(3)
-
 test_that("minimal contract-compliant data passes validation", {
   expect_no_error(validate_adam(minimal_raw()))
   expect_invisible(validate_adam(minimal_raw()))

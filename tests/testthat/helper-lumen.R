@@ -1,4 +1,4 @@
-# Shared test setup: sources the pipeline and provides the data scenarios.
+# Shared test setup: data scenarios and isolation helpers.
 #
 # The data invariants are checked on several *different* datasets so they hold
 # whatever the data are, not just for one snapshot:
@@ -7,12 +7,6 @@
 #   synthetic_alt    freshly generated, 90 subjects, seed 20240
 #   parquet          bundled data written to parquet and read back (needs {arrow})
 # Run a subset with e.g. Sys.setenv(LUMEN_TEST_SCENARIOS = "bundled").
-
-lumen_root <- normalizePath(file.path(testthat::test_path(), "..", ".."), winslash = "/")
-
-for (f in c("ingest.R", "preprocess.R", "data_pipeline.R", "teal_data.R")) {
-  sys.source(file.path(lumen_root, "R", f), envir = environment(), keep.source = FALSE)
-}
 
 lumen_scenarios <- function() {
   all <- c("bundled", "synthetic_small", "synthetic_alt", "parquet")
@@ -26,15 +20,15 @@ build_scenario <- function(name) {
   warnings <- character(0)
   raw <- withCallingHandlers(
     switch(name,
-           bundled = ingest_adam("bundled"),
-           synthetic_small = ingest_adam("synthetic", synthetic = list(N = 40, seed = 1)),
-           synthetic_alt = ingest_adam("synthetic", synthetic = list(N = 90, seed = 20240)),
-           parquet = {
-             if (!requireNamespace("arrow", quietly = TRUE)) stop("package 'arrow' is not installed")
-             dir <- file.path(tempfile("lumen-parquet-"))
-             export_adam_parquet(ingest_bundled(), dir)
-             ingest_adam("parquet", parquet_dir = dir)
-           }
+      bundled = ingest_adam("bundled"),
+      synthetic_small = ingest_adam("synthetic", synthetic = list(N = 40, seed = 1)),
+      synthetic_alt = ingest_adam("synthetic", synthetic = list(N = 90, seed = 20240)),
+      parquet = {
+        if (!requireNamespace("arrow", quietly = TRUE)) stop("package 'arrow' is not installed")
+        dir <- file.path(tempfile("lumen-parquet-"))
+        export_adam_parquet(ingest_bundled(), dir)
+        ingest_adam("parquet", parquet_dir = dir)
+      }
     ),
     warning = function(w) {
       warnings <<- c(warnings, conditionMessage(w))
@@ -84,9 +78,9 @@ minimal_raw <- function(n = 2) {
   })
 }
 
-#' Run code with the project root as working directory and isolated caches/options
-local_lumen_project <- function(env = parent.frame()) {
-  withr::local_dir(lumen_root, .local_envir = env)
+#' Isolated options and caches for a test: temporary disk cache, fresh memory
+#' cache, nothing copied to the Global Environment.
+local_lumen_options <- function(env = parent.frame()) {
   withr::local_options(
     list(
       lumen.cache_dir = withr::local_tempdir(.local_envir = env),
@@ -99,15 +93,16 @@ local_lumen_project <- function(env = parent.frame()) {
     ),
     .local_envir = env
   )
+  local_memory_cache(env)
 }
 
-#' Save and restore the session cache in the Global Environment
-local_global_cache <- function(env = parent.frame()) {
-  had <- exists(".lumen_cache", envir = globalenv(), inherits = FALSE)
-  old <- if (had) get(".lumen_cache", envir = globalenv())
+#' Save and restore the package's session memory cache
+local_memory_cache <- function(env = parent.frame()) {
+  had <- exists("data_cache", envir = the, inherits = FALSE)
+  old <- if (had) get("data_cache", envir = the)
   withr::defer(
     {
-      if (had) assign(".lumen_cache", old, envir = globalenv()) else suppressWarnings(rm(".lumen_cache", envir = globalenv()))
+      if (had) assign("data_cache", old, envir = the) else suppressWarnings(rm("data_cache", envir = the))
     },
     envir = env
   )

@@ -1,5 +1,3 @@
-testthat::local_edition(3)
-
 # Properties the pre-processing must satisfy for *any* valid input data.
 # Each block runs once per data scenario (see helper-lumen.R).
 
@@ -15,11 +13,11 @@ for (sc in lumen_scenarios()) {
     for (ds in names(out$datasets)) expect_s3_class(out$datasets[[ds]], "data.frame")
     expect_type(out$meta$adsl_char_vars, "character")
   })
-  
+
   test_that(sprintf("[%s] pre-processing raised no warnings", sc), {
     expect_identical(scenario(sc)$warnings[grepl("AE codes", scenario(sc)$warnings)], character(0))
   })
-  
+
   test_that(sprintf("[%s] ADSL: one row per subject, AGEGR1 consistent with AGE, no character columns", sc), {
     raw <- scenario(sc)$raw$ADSL
     adsl <- scenario(sc)$processed$datasets$ADSL
@@ -33,7 +31,7 @@ for (sc in lumen_scenarios()) {
     expect_identical(label_of(adsl$AGEGR1), "Age Group")
     expect_identical(scenario(sc)$processed$meta$adsl_char_vars, names(raw)[vapply(raw, is.character, logical(1))])
   })
-  
+
   test_that(sprintf("[%s] ADSL: column labels survive pre-processing", sc), {
     raw <- scenario(sc)$raw$ADSL
     adsl <- scenario(sc)$processed$datasets$ADSL
@@ -41,7 +39,7 @@ for (sc in lumen_scenarios()) {
       if (!is.null(label_of(raw[[col]]))) expect_identical(label_of(adsl[[col]]), label_of(raw[[col]]), info = col)
     }
   })
-  
+
   test_that(sprintf("[%s] ADRS unchanged; ADRS_EFF is exactly the efficacy subset", sc), {
     raw <- scenario(sc)$raw$ADRS
     ds <- scenario(sc)$processed$datasets
@@ -53,7 +51,7 @@ for (sc in lumen_scenarios()) {
     expect_true(all(ds$ADRS_EFF$PARAMCD == "BESRSPI" | ds$ADRS_EFF$AVISIT == "FOLLOW UP"))
     expect_false(anyDuplicated(ds$ADRS_EFF[c("STUDYID", "USUBJID", "PARAMCD", "AVISIT")]) > 0)
   })
-  
+
   test_that(sprintf("[%s] ADLBPCA: one row per subject, one column per lab x visit", sc), {
     adlb <- scenario(sc)$raw$ADLB
     pca <- scenario(sc)$processed$datasets$ADLBPCA
@@ -63,7 +61,7 @@ for (sc in lumen_scenarios()) {
     # columns selected by default in the PCA module
     expect_true(all(c("ALT - WEEK 5 DAY 36", "CRP - WEEK 5 DAY 36", "IGA - WEEK 5 DAY 36") %in% names(pca)))
   })
-  
+
   test_that(sprintf("[%s] ADQS: only the 3 post-baseline analysis visits", sc), {
     adqs <- scenario(sc)$processed$datasets$ADQS
     expect_gt(nrow(adqs), 0)
@@ -72,7 +70,7 @@ for (sc in lumen_scenarios()) {
     expect_s3_class(adqs$AVISIT, "factor")
     expect_s3_class(adqs$AVISITN, "factor")
   })
-  
+
   test_that(sprintf("[%s] ADAETTE: event flags and counts follow the template rules", sc), {
     raw <- scenario(sc)$raw$ADAETTE
     x <- scenario(sc)$processed$datasets$ADAETTE
@@ -88,7 +86,7 @@ for (sc in lumen_scenarios()) {
     expect_identical(label_of(x$is_event), "Is an Event")
     expect_identical(label_of(x$n_events), "Number of Events")
   })
-  
+
   test_that(sprintf("[%s] ADEX: overall parameters only, simulated TDURD is valid and reproducible", sc), {
     raw <- scenario(sc)$raw$ADEX
     x <- scenario(sc)$processed$datasets$ADEX
@@ -100,21 +98,21 @@ for (sc in lumen_scenarios()) {
     expect_true(all(tdurd$AVAL >= 1 & tdurd$AVAL <= 200 & tdurd$AVAL == round(tdurd$AVAL)))
     expect_identical(preprocess_adex(raw), x)
   })
-  
+
   test_that(sprintf("[%s] ADVS: abnormality grades collapsed, on-treatment flag derived", sc), {
     x <- scenario(sc)$processed$datasets$ADVS
     expect_type(x$ANRIND, "character")
     expect_false(any(c("HIGH HIGH", "LOW LOW") %in% c(x$ANRIND, x$BNRIND)))
     expect_identical(as.vector(x$ONTRTFL == ""), as.character(x$AVISIT) %in% c("SCREENING", "BASELINE"))
   })
-  
+
   test_that(sprintf("[%s] ADCM: CMSEQ is an integer sequence", sc), {
     raw <- scenario(sc)$raw$ADCM
     x <- scenario(sc)$processed$datasets$ADCM
     expect_type(x$CMSEQ, "integer")
     expect_identical(x$CMSEQ, as.integer(raw$CMSEQ))
   })
-  
+
   test_that(sprintf("[%s] ADAE: flags match their source columns", sc), {
     x <- scenario(sc)$processed$datasets$ADAE
     # as.vector(): the flags carry a label attribute, compare values only
@@ -126,7 +124,7 @@ for (sc in lumen_scenarios()) {
     expect_identical(as.vector(x$TMP_CQ01), !is.na(x$CQ01NAM))
     expect_identical(label_of(x$TMPFL_SER), "Serious AE")
   })
-  
+
   test_that(sprintf("[%s] ADAE: names replace codes without merging or losing records", sc), {
     raw <- scenario(sc)$raw$ADAE
     x <- scenario(sc)$processed$datasets$ADAE
@@ -138,14 +136,14 @@ for (sc in lumen_scenarios()) {
       expect_false(any(grepl(ae_code_pattern, as.character(x[[col]]))), info = col)
     }
   })
-  
+
   test_that(sprintf("[%s] all analysis datasets only contain ADSL subjects", sc), {
     ds <- scenario(sc)$processed$datasets
     for (nm in setdiff(names(ds), "ADSL")) {
       expect_true(all(as.character(ds[[nm]]$USUBJID) %in% as.character(ds$ADSL$USUBJID)), info = nm)
     }
   })
-  
+
   test_that(sprintf("[%s] pre-processing is deterministic", sc), {
     raw <- scenario(sc)$raw
     expect_identical(suppressWarnings(preprocess_adam(raw)), scenario(sc)$processed)
