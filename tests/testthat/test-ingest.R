@@ -1,6 +1,6 @@
 # ---- Every data source produces contract-compliant raw data -----------------
 
-for (sc in lumen_scenarios()) {
+for (sc in teal_neue_scenarios()) {
   test_that(sprintf("[%s] scenario builds without error", sc), {
     if (sc == "parquet") skip_if_not_installed("arrow")
     err <- scenario_error(sc)
@@ -30,7 +30,7 @@ for (sc in lumen_scenarios()) {
 # ---- Source selection and settings --------------------------------------------
 
 test_that("unknown data source is rejected", {
-  expect_error(lumen_source_config("excel"), "should be one of")
+  expect_error(teal_neue_source_config("excel"), "should be one of")
 })
 
 test_that("synthetic settings are completed with defaults and validated", {
@@ -45,11 +45,11 @@ test_that("synthetic settings are completed with defaults and validated", {
 })
 
 test_that("an NA seed draws a random seed once and stores it for the session", {
-  withr::local_options(lumen.synthetic = list(N = 10, seed = NA))
-  expect_message(s1 <- synthetic_settings(getOption("lumen.synthetic")), "Random synthetic-data seed")
+  withr::local_options(teal_neue.synthetic = list(N = 10, seed = NA))
+  expect_message(s1 <- synthetic_settings(getOption("teal_neue.synthetic")), "Random synthetic-data seed")
   expect_false(is.na(s1$seed))
-  expect_identical(getOption("lumen.synthetic")$seed, s1$seed)
-  s2 <- synthetic_settings(getOption("lumen.synthetic"))
+  expect_identical(getOption("teal_neue.synthetic")$seed, s1$seed)
+  s2 <- synthetic_settings(getOption("teal_neue.synthetic"))
   expect_identical(s2$seed, s1$seed)
 })
 
@@ -84,7 +84,7 @@ test_that("dataset names are derived from parquet file names", {
 
 test_that("only ADaM parquet files are picked up from the folder", {
   dir <- withr::local_tempdir()
-  file.create(file.path(dir, c("adsl.parquet", "adae_adam.parquet", "notes.txt", "summary.parquet", "adam.parquet", "lumen_adam.rds")))
+  file.create(file.path(dir, c("adsl.parquet", "adae_adam.parquet", "notes.txt", "summary.parquet", "adam.parquet", "teal_neue_adam.rds")))
   files <- adam_parquet_files(dir)
   expect_setequal(names(files), c("ADSL", "ADAE"))
 })

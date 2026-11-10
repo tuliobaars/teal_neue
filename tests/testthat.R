@@ -7,6 +7,6 @@
 # * https://testthat.r-lib.org/articles/special-files.html
 
 library(testthat)
-library(lumen)
+library(teal.neue)
 
-test_check("lumen")
+test_check("teal.neue")

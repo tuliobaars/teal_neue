@@ -1,17 +1,30 @@
-Package: lumen
-Title: Integrated Clinical Trial Analysis App Built on 'teal'
-Version: 0.1.0
-Authors@R:
-    person("Tulio", "Author", email = "tulio@example.com", role = c("aut", "cre"))
-Description: Combines the exploratory, safety and efficacy 'teal.gallery'
-    templates into a single 'teal' application for clinical trial data in
-    CDISC ADaM format. A cached data pipeline (ingestion, pre-processing,
-    caching) reads the synthetic datasets bundled with 'random.cdisc.data',
-    freshly generated synthetic data with configurable size and seed, or ADaM
-    parquet files. Every data source is checked against a data contract, and
-    each analysis starts with the population of its source template (safety
-    or intent-to-treat).
+Package: teal.neue
+Title: Modernised Clinical Trial Analysis App Built on 'teal'
+Version: 0.2.0
+Authors@R: c(
+    person("Tulio", "Author", email = "tulio@example.com", role = c("aut", "cre")),
+    person("The Inter Project Authors", role = "cph",
+           comment = "Inter font (SIL Open Font License 1.1)"),
+    person("The JetBrains Mono Project Authors", role = "cph",
+           comment = "JetBrains Mono font (SIL Open Font License 1.1)")
+    )
+Description: 'teal_neue' combines the exploratory, safety and efficacy
+    'teal.gallery' templates into a single 'teal' application for clinical
+    trial data in CDISC ADaM format, layered on top of the standard 'teal'
+    theme so the app stays recognisably 'teal': a command bar that reaches
+    every module and output, a breadcrumb, deep links and browser history,
+    keyboard shortcuts, plot and table tools (viewer, copy, download), pins
+    with visual comparison of plot versions, a calm "instrument" look with
+    light and dark palettes, and cleaner plot defaults. A TLG Catalog
+    section reproduces every table, listing and graph of the 'TLG Catalog'
+    on the filtered data, with reproducible code. A cached data pipeline (ingestion,
+    pre-processing, caching) reads the synthetic datasets bundled with
+    'random.cdisc.data', freshly generated synthetic data with configurable
+    size and seed, or ADaM parquet files. Every data source is checked
+    against a data contract, and each analysis starts with the population of
+    its source template (safety or intent-to-treat).
 License: MIT + file LICENSE
+Copyright: See inst/COPYRIGHTS for the bundled fonts.
 Encoding: UTF-8
 Language: en-US
 Depends:
@@ -19,7 +32,9 @@ Depends:
 Imports:
     bslib (>= 0.6.0),
     dplyr (>= 1.1.0),
-    htmltools,
+    DT,
+    grid,
+    htmltools (>= 0.5.4),
     random.cdisc.data (>= 0.3.16),
     rlang (>= 1.0.0),
     shiny (>= 1.8.1),
@@ -52,6 +67,9 @@ Imports:
     sparkline
 Suggests:
     arrow,
+    ggplot2,
+    rlistings,
+    tern.mmrm,
     knitr,
     pkgload,
     rmarkdown,
@@ -61,4 +79,4 @@ VignetteBuilder:
     knitr
 Config/testthat/edition: 3
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2
+Config/roxygen2/version: 8.1.1

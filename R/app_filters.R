@@ -5,9 +5,9 @@
 #   Efficacy modules : + ITTFL == "Y"
 
 #' Filter set for the app
-#' @param modules The app's modules (see lumen_modules()).
+#' @param modules The app's modules (see teal_neue_modules()).
 #' @noRd
-lumen_filters <- function(modules) {
+teal_neue_filters <- function(modules) {
   group <- function(label) {
     Filter(function(x) identical(x$label, label), modules$children)[[1]]
   }

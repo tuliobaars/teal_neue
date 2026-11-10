@@ -5,9 +5,9 @@
 \title{Ingest raw ADaM datasets}
 \usage{
 ingest_adam(
-  source = getOption("lumen.data_source", "bundled"),
-  synthetic = getOption("lumen.synthetic", list()),
-  parquet_dir = getOption("lumen.parquet_dir", "cache")
+  source = getOption("teal_neue.data_source", "bundled"),
+  synthetic = getOption("teal_neue.synthetic", list()),
+  parquet_dir = getOption("teal_neue.parquet_dir", "cache")
 )
 }
 \arguments{
@@ -37,7 +37,7 @@ Data sources:
 \item \code{"synthetic"}: freshly generated data (\code{random.cdisc.data::radsl()},
 \code{radae()}, ...) using \code{synthetic = list(N, seed, args)}. A missing or \code{NA}
 seed draws a random seed once per session (printed in the console and
-stored in option \code{lumen.synthetic}).
+stored in option \code{teal_neue.synthetic}).
 \item \code{"parquet"}: every ADaM parquet file in \code{parquet_dir}, named
 \code{adsl.parquet}, \code{adae.parquet}, ... or \code{adsl_adam.parquet}, ...
 (case-insensitive). Other files are ignored. Needs the 'arrow' package.
@@ -52,5 +52,5 @@ nrow(small$ADSL)
 }
 }
 \seealso{
-\link{lumen_options}, \code{\link[=export_adam_parquet]{export_adam_parquet()}}, \code{\link[=validate_adam]{validate_adam()}}
+\link{teal_neue_options}, \code{\link[=export_adam_parquet]{export_adam_parquet()}}, \code{\link[=validate_adam]{validate_adam()}}
 }

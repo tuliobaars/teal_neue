@@ -12,7 +12,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
 ```{r setup}
-library(lumen)
+library(teal.neue)
 ```
 
 ## The pipeline
@@ -22,7 +22,7 @@ library(lumen)
  (raw ADaM)   read raw data     data contract       analysis datasets    memory + disk
 ```
 
-`load_lumen_data()` runs the pipeline and returns the 13 analysis-ready
+`load_teal_neue_data()` runs the pipeline and returns the 13 analysis-ready
 datasets, from cache whenever possible.
 
 ## Three data sources
@@ -53,7 +53,7 @@ raw <- ingest_adam(
 ```
 
 With `seed = NA` a random seed is drawn once per session, printed in the
-console and stored in option `lumen.synthetic`, so the app and its "Show R
+console and stored in option `teal_neue.synthetic`, so the app and its "Show R
 code" always use the same draw.
 
 ### Parquet files
@@ -112,18 +112,18 @@ decode_ae_terms(data.frame(AEDECOD = c("dcd A.1.1.1.1", "dcd D.1.1.4.2", "Headac
 
 ## Caching
 
-`load_lumen_data()` uses the first valid cache:
+`load_teal_neue_data()` uses the first valid cache:
 
 1. **session memory** - instant for repeated launches in one R session;
-2. **disk** - `lumen_adam.rds` in `tools::R_user_dir("lumen", "cache")`
-   (option `lumen.cache_dir`);
+2. **disk** - `teal_neue_adam.rds` in `tools::R_user_dir("teal.neue", "cache")`
+   (option `teal_neue.cache_dir`);
 3. **fresh build** - then cached.
 
 The cache is rebuilt automatically when the package version or any
 data-producing function changes, or when the source changes (source type,
 synthetic settings, *random.cdisc.data* version, or a parquet file's name,
 size or modification time). Force a rebuild with `refresh = TRUE` (option
-`lumen.refresh_cache`) or clear everything with `lumen_clear_cache()`.
+`teal_neue.refresh_cache`) or clear everything with `teal_neue_clear_cache()`.
 
 ## Switching to real study data
 
@@ -132,4 +132,4 @@ size or modification time). Force a rebuild with `refresh = TRUE` (option
 3. Fix anything `validate_adam()` reports; review the warnings of
    `check_app_defaults()` and adjust the module defaults if needed.
 4. Run the test suite (`devtools::test()`); the data invariants run on every
-   data scenario (see `vignette("development", package = "lumen")`).
+   data scenario (see `vignette("development", package = "teal.neue")`).

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="teal_neue">
+  <rect class="tn-logo-bg" width="32" height="32" rx="8" fill="#0e8f83"/>
+  <path class="tn-logo-axis" d="M7.5 7v17.5H25" fill="none" stroke="#ffffff" stroke-opacity=".42" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path class="tn-logo-mark" d="M11 9.5h5v5h4.5v5H25" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle class="tn-logo-dot" cx="25" cy="19.5" r="2" fill="#ffd166"/>
+</svg>

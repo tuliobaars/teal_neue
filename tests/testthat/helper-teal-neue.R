@@ -6,11 +6,11 @@
 #   synthetic_small  freshly generated, 40 subjects, seed 1
 #   synthetic_alt    freshly generated, 90 subjects, seed 20240
 #   parquet          bundled data written to parquet and read back (needs {arrow})
-# Run a subset with e.g. Sys.setenv(LUMEN_TEST_SCENARIOS = "bundled").
+# Run a subset with e.g. Sys.setenv(TEAL_NEUE_TEST_SCENARIOS = "bundled").
 
-lumen_scenarios <- function() {
+teal_neue_scenarios <- function() {
   all <- c("bundled", "synthetic_small", "synthetic_alt", "parquet")
-  chosen <- Sys.getenv("LUMEN_TEST_SCENARIOS", paste(all, collapse = ","))
+  chosen <- Sys.getenv("TEAL_NEUE_TEST_SCENARIOS", paste(all, collapse = ","))
   intersect(trimws(strsplit(chosen, ",")[[1]]), all)
 }
 
@@ -25,7 +25,7 @@ build_scenario <- function(name) {
       synthetic_alt = ingest_adam("synthetic", synthetic = list(N = 90, seed = 20240)),
       parquet = {
         if (!requireNamespace("arrow", quietly = TRUE)) stop("package 'arrow' is not installed")
-        dir <- file.path(tempfile("lumen-parquet-"))
+        dir <- file.path(tempfile("teal-neue-parquet-"))
         export_adam_parquet(ingest_bundled(), dir)
         ingest_adam("parquet", parquet_dir = dir)
       }
@@ -80,16 +80,21 @@ minimal_raw <- function(n = 2) {
 
 #' Isolated options and caches for a test: temporary disk cache, fresh memory
 #' cache, nothing copied to the Global Environment.
-local_lumen_options <- function(env = parent.frame()) {
+local_teal_neue_options <- function(env = parent.frame()) {
   withr::local_options(
     list(
-      lumen.cache_dir = withr::local_tempdir(.local_envir = env),
-      lumen.cache_global = FALSE,
-      lumen.refresh_cache = FALSE,
-      lumen.use_cache = TRUE,
-      lumen.data_source = "bundled",
-      lumen.synthetic = NULL,
-      lumen.parquet_dir = NULL
+      teal_neue.cache_dir = withr::local_tempdir(.local_envir = env),
+      teal_neue.cache_global = FALSE,
+      teal_neue.refresh_cache = FALSE,
+      teal_neue.use_cache = TRUE,
+      teal_neue.data_source = "bundled",
+      teal_neue.synthetic = NULL,
+      teal_neue.parquet_dir = NULL,
+      teal_neue.style = TRUE,
+      teal_neue.color_mode = "light",
+      teal_neue.motion = TRUE,
+      teal_neue.ggtheme = "minimal",
+      teal.ggplot2_args = NULL
     ),
     .local_envir = env
   )

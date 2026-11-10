@@ -3,13 +3,13 @@ app_parts <- local({
   parts <- NULL
   function() {
     if (is.null(parts)) {
-      local_lumen_options(env = environment())
+      local_teal_neue_options(env = environment())
       warnings <- character(0)
       withCallingHandlers(
         {
-          data <- build_lumen_teal_data(cache_global = FALSE)
-          modules <- lumen_modules(data)
-          app <- lumen_app(cache_global = FALSE)
+          data <- build_teal_neue_data(cache_global = FALSE)
+          modules <- teal_neue_modules(data)
+          app <- teal_neue_app(cache_global = FALSE)
         },
         warning = function(w) {
           warnings <<- c(warnings, conditionMessage(w))
@@ -17,7 +17,7 @@ app_parts <- local({
         },
         message = function(m) invokeRestart("muffleMessage")
       )
-      parts <<- list(data = data, modules = modules, filters = lumen_filters(modules), app = app, warnings = warnings)
+      parts <<- list(data = data, modules = modules, filters = teal_neue_filters(modules), app = app, warnings = warnings)
     }
     parts
   }
@@ -40,17 +40,45 @@ test_that("the teal app builds without warnings", {
 })
 
 test_that("run_app() returns a Shiny app object", {
-  local_lumen_options()
+  local_teal_neue_options()
   expect_s3_class(suppressMessages(run_app(cache_global = FALSE)), "shiny.appobj")
 })
 
+render_ui <- function(app) {
+  ui <- if (is.function(app$ui)) app$ui(list()) else app$ui
+  htmltools::renderTags(ui)
+}
+
 test_that("the UI renders (regression: an unlabeled module group broke ui_teal)", {
   p <- app_parts()
-  ui <- if (is.function(p$app$ui)) p$app$ui(list()) else p$app$ui
-  html <- htmltools::renderTags(ui)$html
-  expect_match(html, "lumen_dark_mode", fixed = TRUE)
-  expect_match(html, "Lumen: Clinical Trial Analysis", fixed = TRUE)
+  rendered <- render_ui(p$app)
+  html <- rendered$html
+  expect_match(html, "teal_neue_dark_mode", fixed = TRUE)
+  expect_match(html, "tn-header", fixed = TRUE)
+  expect_match(html, "Clinical Trial Analysis", fixed = TRUE)
+  expect_match(html, "subjects", fixed = TRUE) # data badge
   expect_no_match(html, "Roche|Genentech")
+})
+
+test_that("the UI ships the teal_neue assets and makes no third-party requests", {
+  p <- app_parts()
+  rendered <- render_ui(p$app)
+  deps <- vapply(rendered$dependencies, function(d) d$name, character(1))
+  expect_true("teal-neue" %in% deps)
+  page <- paste(rendered$head, rendered$html)
+  # the favicon is inlined; fonts are served by the app itself
+  expect_no_match(page, "raw.githubusercontent.com|fonts.googleapis.com|fonts.gstatic.com")
+  expect_match(page, "data:image/png;base64,", fixed = TRUE)
+})
+
+test_that("option teal_neue.style = FALSE gives the plain teal header", {
+  local_teal_neue_options()
+  withr::local_options(teal_neue.style = FALSE)
+  app <- suppressMessages(teal_neue_app(cache_global = FALSE))
+  rendered <- render_ui(app)
+  expect_match(rendered$html, "teal_neue: Clinical Trial Analysis", fixed = TRUE)
+  expect_match(rendered$html, "teal_neue_dark_mode", fixed = TRUE)
+  expect_false("teal-neue" %in% vapply(rendered$dependencies, function(d) d$name, character(1)))
 })
 
 test_that("every module group has a label and all module labels are unique", {
@@ -60,7 +88,7 @@ test_that("every module group has a label and all module labels are unique", {
   expect_false(anyDuplicated(leaf_labels(p$modules)) > 0)
   expect_identical(
     vapply(p$modules$children, function(x) x$label, character(1)),
-    c("App Info", "Data Table", "Variable Browser", "Exploratory Analysis", "Safety Analysis", "Efficacy Analysis")
+    c("App Info", "Data Table", "TLG Catalog", "Variable Browser", "Exploratory Analysis", "Safety Analysis", "Efficacy Analysis")
   )
 })
 
@@ -88,6 +116,15 @@ test_that("module-specific filters: mapping refers to real modules and filter id
 })
 
 test_that("the File viewer points at files that exist", {
-  expect_true(dir.exists(lumen_file_viewer_paths(list(source = "bundled"))[[1]]))
-  expect_identical(lumen_file_viewer_paths(list(source = "parquet", parquet_dir = "x"))[[1]], "x")
+  expect_true(dir.exists(teal_neue_file_viewer_paths(list(source = "bundled"))[[1]]))
+  expect_identical(teal_neue_file_viewer_paths(list(source = "parquet", parquet_dir = "x"))[[1]], "x")
+})
+
+test_that("exploratory plot modules get the app's default ggplot2 theme where supported", {
+  p <- app_parts()
+  skip_if_not("ggtheme" %in% names(formals(teal.modules.general::tm_g_scatterplot)), "tm_g_scatterplot has no ggtheme")
+  scatter <- Filter(function(m) identical(m$label, "Scatterplot"), leaf_modules(p$modules))[[1]]
+  args <- c(scatter$ui_args, scatter$server_args)
+  skip_if(is.null(args[["ggtheme"]]), "module arguments not stored in ui_args/server_args")
+  expect_identical(args[["ggtheme"]], "minimal")
 })

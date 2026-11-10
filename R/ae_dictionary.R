@@ -131,7 +131,7 @@ decode_ae_terms <- function(adae) {
     v[!is.na(v) & grepl(ae_code_pattern, v)]
   })))
   if (length(leftover)) {
-    warning("[lumen] AE codes without a name in ae_dictionary() (left unchanged): ", toString(leftover), call. = FALSE)
+    warning("[teal_neue] AE codes without a name in ae_dictionary() (left unchanged): ", toString(leftover), call. = FALSE)
   }
   adae
 }

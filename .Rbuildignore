@@ -15,3 +15,5 @@
 ^\.git$
 ^\.gitignore$
 \.DS_Store$
+^preview$
+^__MACOSX$

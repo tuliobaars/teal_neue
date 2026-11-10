@@ -18,13 +18,17 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
 | `R/ingest.R` | Data sources, parquet import/export, data contract |
 | `R/preprocess.R` | Pre-processing per dataset (from the templates) |
 | `R/ae_dictionary.R` | Readable adverse event names |
-| `R/data_pipeline.R` | `load_lumen_data()`: pipeline + caches |
+| `R/data_pipeline.R` | `load_teal_neue_data()`: pipeline + caches |
 | `R/teal_data.R` | `teal_data` object, reproducible code, join keys |
 | `R/app_modules.R` | Module configuration (one function per tab group) |
 | `R/app_filters.R` | Module-specific filters / starting populations |
-| `R/app_ui.R` | Header (dark mode toggle) and footer |
-| `R/run_app.R` | `lumen_app()`, `run_app()` |
-| `R/options.R` | `?lumen_options` |
+| `R/app_ui.R` | Header (logo, data badge, dark mode toggle), footer, favicon, asset dependency |
+| `R/plot_theme.R` | Plot defaults: `teal.ggplot2_args`, default ggplot2 theme of the plot modules |
+| `R/tlg_catalog.R` | TLG Catalog module: registry, pages, runner, renderers |
+| `R/tlg_entries_*.R` | TLG Catalog outputs (one function per topic group) |
+| `R/run_app.R` | `teal_neue_app()`, `run_app()` |
+| `R/options.R` | `?teal_neue_options` |
+| `inst/www/` | Stylesheets, scripts (colour mode, TLG Catalog list), logo, favicon and fonts |
 | `inst/templates/` | The original teal.gallery templates |
 | `app.R` | Launcher for RStudio "Run App" / Posit Connect |
 
@@ -44,12 +48,131 @@ devtools::check()      # full R CMD check
 Modules live in `R/app_modules.R`, in the function of their tab group
 (`modules_exploratory()`, `modules_safety()`, `modules_efficacy()`). Keep
 labels unique across the app: module-specific filters are keyed by label,
-and `lumen_modules()` stops if two modules share one. Safety and efficacy
+and `teal_neue_modules()` stops if two modules share one. Safety and efficacy
 modules automatically get their starting population (see `R/app_filters.R`).
+
+Exploratory plot modules are created with
+`teal_neue_plot_module(tm_g_..., <arguments>)` rather than a direct call: it
+adds the app's default ggplot2 theme (option `teal_neue.ggtheme`), but only when
+the installed module version has a matching theme argument, so a module API
+change cannot break the app.
 
 If a new module needs a dataset column that is not yet in the contract, add it
 to `adam_contract()`; if it pre-selects a value, add it to
 `adam_app_defaults()`.
+
+## Adding or changing a TLG Catalog output
+
+Each output is one `tlg()` entry in `R/tlg_entries_*.R`:
+
+```{r}
+tlg("AET02", "Adverse Events", "Table",
+    topic = "Adverse Events", slug = "adverse-events",
+    data = c("ADSL", "ADAE"),            # app datasets the code uses
+    code = r"--(
+library(tern)
+adsl <- ADSL %>% filter(SAFFL == "Y") %>% df_explicit_na()
+...
+result <- build_table(lyt, df = adae, alt_counts_df = adsl)
+)--")
+```
+
+The code is a plain string: it runs with teal's `eval_code()` on the page's
+filtered data (datasets in upper case: `ADSL`, `ADAE`, ...) and must create
+`result`: an rtables table, an rlistings listing, a data.frame, or a plot
+(ggplot2, grid or lattice). The same string is what "Show R code" shows. Use
+`teal.neue::tlg_example_data("ADPC", adsl)` (and list the dataset in `extra`)
+for datasets the app does not load; list non-default packages in `packages`.
+
+`test-tlg-catalog.R` renders every output on the bundled data and lists the
+ones that fail with their error message (skip it with
+`Sys.setenv(TEAL_NEUE_SKIP_TLG = "true")`).
+
+## Styling and the interactive layer
+
+The look lives in `inst/www/teal_neue.css` and the behaviour in
+`inst/www/teal_neue.js` (no dependencies). `inst/www/tlg_catalog.css` holds
+the layout of the TLG Catalog pages only (Bootstrap variables, no colours of
+its own); `teal_neue.css` skins those pages in its last section.
+
+The stylesheet redefines Bootstrap's CSS variables on top of teal's default
+theme instead of compiling a custom `bslib::bs_theme()`. That keeps bslib's
+precompiled CSS (no Sass compilation at start-up) and the app recognisably
+teal. Its tokens (`--tn-*`: type scale, spacing, radii, motion, canvas,
+panels, lines, ink levels, accent and signal colours) are defined once for
+both modes and per mode in the `html:not([data-bs-theme="dark"])` (light) and
+`html[data-bs-theme="dark"]` blocks. Appearance settings are attributes on
+`<html>` that override tokens (`data-tn-text`, `data-tn-density`,
+`data-tn-accent`, `data-tn-corners`, `data-tn-contrast`, `data-tn-canvas`);
+the current category is `data-tn-section` (set by the script), which picks
+the accent tokens of that category unless a fixed accent is chosen. Guidelines:
+
+* prefer changing a token or a `--bs-*` variable over styling a component;
+* dark-mode values go in the `html[data-bs-theme="dark"]` block;
+* selectors start with `html` when they must win over widget stylesheets that
+  load later (e.g. ionRangeSlider, selectize);
+* keep drawing cheap: no `backdrop-filter`, no background images, no
+  infinite animations; animate `transform`, `opacity` and colours only;
+* entrance animations use `backwards` fill (or end on `none`), so no
+  `transform` is left on a surface afterwards;
+* never set a font family inside plots (see `R/plot_theme.R`).
+
+`teal_neue.js` works from the page itself, so it does not depend on how teal
+builds its navigation:
+
+* **Navigation model**: every Bootstrap tab trigger (`data-bs-toggle="tab"`
+  or `"pill"`) and its chain of parent tabs and menus gives the path of a
+  view. Opening a view shows each tab of its chain in turn (Bootstrap's Tab
+  API). Elements that are not Bootstrap tabs are reached by clicking the
+  visible elements labelled with each part of the path.
+* **Index**: the header carries a JSON index (`teal_neue_index()` in
+  `R/app_ui.R`): the path and kind of every module and the ID, title, type and
+  topic of every TLG output. The command bar uses it for order, icons and the
+  outputs; without it, it indexes the tabs it finds.
+* **Views** are tracked from Bootstrap's `shown.bs.tab` events and clicks on
+  tabs and TLG outputs; each view updates the breadcrumb, the page title, the
+  address (`history.pushState`, a `#/` path of slugs) and the recent list
+  (`localStorage`). On load and on `popstate`, the `#/` path is opened.
+* **Status** uses Shiny's `shiny:busy` / `shiny:idle` events.
+* **Home page**: the study overview is computed in R when the app is built
+  (`teal_neue_app_overview()` in `R/overview.R`: small, JSON-ready summaries,
+  each part in its own `tryCatch()`), travels in the index as `overview`,
+  and is drawn by the script with HTML and SVG into the App Info page. Arm
+  colours are CSS variables (`--tn-arm-0` ... `--tn-arm-5`, `--tn-arm-n` for
+  placebo / control), so both colour modes follow.
+* **Tools and pins** work on `.shiny-plot-output img` and on HTML tables
+  outside DataTables; pins are kept in memory for the session (images as data
+  URLs, tables as HTML).
+* Settings from R (`teal_neue.color_mode`, `teal_neue.motion`) arrive in
+  `window.tealNeue` through the inline script of the header dependency,
+  which also applies dark mode and the saved appearance before the first
+  paint.
+* **Start-up**: `teal_neue_app()` keeps the built app in `the$app_cache`
+  (keyed by `teal_neue_app_key()`: package version, data signature, look
+  options); `run_app()` wraps teal's UI with `teal_neue_fast_ui()`, which
+  serves the first page built for a plain request again. `tlg_catalog()` is
+  memoised. The build message breaks the time down by step.
+
+### Fonts
+
+The fonts are subsets converted to WOFF2 with
+[fontTools](https://github.com/fonttools/fonttools): Inter (the variable
+font, pinned to its text optical size; every weight) and JetBrains Mono
+(no-ligature cut). To rebuild them (e.g. for a newer Inter release), keep
+Latin, Greek, punctuation, arrows and mathematical operators:
+
+```sh
+UNICODES="U+0000-00FF,U+0100-017F,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0370-03FF,U+2000-206F,U+2070-209F,U+20AC,U+2122,U+2190-21FF,U+2200-22FF,U+2300-23FF,U+25A0-25FF,U+2713-2717,U+FEFF,U+FFFD"
+
+fonttools varLib.instancer InterVariable.ttf opsz=14 -o inter-text.ttf
+pyftsubset inter-text.ttf --flavor=woff2 --layout-features='*' --no-hinting \
+  --desubroutinize --output-file=InterVariable.woff2 --unicodes="$UNICODES"
+```
+
+JetBrains Mono uses the same `pyftsubset` command on
+`JetBrainsMonoNL-Regular.ttf` and `-Bold.ttf` (no instancer step; the
+unicode list adds box drawing, `U+2500-257F`). Licences and copyright notices
+are in `inst/www/fonts/OFL.txt` and `inst/COPYRIGHTS`.
 
 ## Tests
 
@@ -63,7 +186,11 @@ The suite (`tests/testthat/`) checks every step:
 | `test-ae-dictionary.R` | AE decoding (one-to-one, unknown codes, labels kept) |
 | `test-data-pipeline.R` | memory/disk/fresh caches, refresh, invalidation, global copies |
 | `test-teal-data.R` | datasets, join keys, reproducible code, error messages |
-| `test-app.R` | app builds without warnings, UI renders, labels, filter mapping |
+| `test-app.R` | app builds without warnings, UI renders, labels, filter mapping, no third-party requests |
+| `test-speed.R` | page cache, app cache key, memoised registry, cache clearing |
+| `test-overview.R` | the study overview: Kaplan-Meier estimate, Wilson interval, populations, every part, robustness, JSON |
+| `test-look.R` | assets and fonts, light and dark tokens, styles of the interactive layer, the script's wiring, options, header/footer, module index, icons, colour-mode script, plot defaults |
+| `test-tlg-catalog.R` | TLG Catalog registry, pages, runner, and **every output on the bundled data** |
 
 **Consistency whatever the data.** The data invariants run on several
 *different* datasets - the bundled data, two synthetic draws of different size
@@ -71,7 +198,7 @@ and seed, and a parquet round trip - so they test properties of the pipeline,
 not one snapshot. Run a subset with an environment variable:
 
 ```{r}
-Sys.setenv(LUMEN_TEST_SCENARIOS = "bundled")   # quick run
+Sys.setenv(TEAL_NEUE_TEST_SCENARIOS = "bundled")   # quick run
 devtools::test()
 ```
 

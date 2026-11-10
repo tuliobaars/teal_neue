@@ -1,0 +1,172 @@
+---
+title: "Getting started with teal_neue"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting started with teal_neue}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+**teal_neue** (R package `teal.neue`) brings the exploratory, safety and
+efficacy analyses of a clinical trial together in a single
+[teal](https://insightsengineering.github.io/teal/) app. It combines the three
+*teal.gallery* templates (kept for reference in `inst/templates/`) on top of a
+cached data pipeline, with a modernised but still recognisably teal look.
+
+## Run the app
+
+```{r, eval = FALSE}
+library(teal.neue)
+run_app()
+```
+
+From the project folder you can also open `app.R` in RStudio and press
+**Run App** (it loads the package with `pkgload` and calls `run_app()`).
+
+The first launch builds the data (a few seconds); later launches in the same
+R session are served from memory, and new sessions from the disk cache.
+
+## A tour of the app
+
+| Tab | What it shows | Starting population |
+|---|---|---|
+| App Info | Sections, data source, packages | - |
+| Data Table, Variable Browser | All datasets | All subjects |
+| TLG Catalog | Every table, listing and graph of the TLG Catalog, one page per topic | As in the catalog (per output) |
+| Exploratory Analysis | Distributions, outliers, associations, regression, PCA, ... | All subjects |
+| Safety Analysis | Demographics, adverse events, labs, exposure, vitals, ECG, concomitant medication | Safety population (`SAFFL == "Y"`) |
+| Efficacy Analysis | Forest plots, Kaplan-Meier, response, time-to-event, Cox, logistic, MMRM, ANCOVA | Intent-to-treat (`ITTFL == "Y"`) |
+
+* **Filters are module-specific.** Sex and age filters apply everywhere;
+  each safety module also starts on the safety population and each efficacy
+  module on the intent-to-treat population, exactly as in the source
+  templates. Changing a shared filter updates every module that uses it.
+* **Show R code** in any module gives runnable code: it starts with
+  `teal.neue::load_teal_neue_data()` with the data-source settings written out, so it
+  reproduces the same data in a fresh R session.
+* **Dark mode**: the sun/moon button in the header switches the whole app
+  between light and dark colours. The app starts in light mode, and the
+  browser remembers your choice.
+* **Header badge**: shows the data source and the number of subjects.
+
+## The TLG Catalog
+
+The **TLG Catalog** tab reproduces the outputs of the
+[TLG Catalog](https://insightsengineering.github.io/tlg-catalog/stable/tlg-index.html)
+on the app's data: one page per topic (Adverse Events, Concomitant
+Medications, Lab Results, Efficacy, Pharmacokinetics, ...), with the tables,
+listings and graphs of that topic in a searchable list on the left. Select an
+output (click, or use the arrow keys) to compute it on the filtered data.
+
+* **Show R code** gives the complete code: the data loading, the filters and
+  the output's code, written in the catalog's style (tern, rtables, rlistings).
+* **Catalog page** opens the output's page in the TLG Catalog.
+* A few outputs need datasets the app does not load (ADPC, ADPP, ADAB, ADMH,
+  ADHY); they use the *random.cdisc.data* examples for the same patients, as
+  noted on their page.
+
+## The data in the console
+
+`run_app()` copies every analysis dataset into the Global Environment, so after
+closing the app you can explore them directly:
+
+```{r, eval = FALSE}
+head(ADSL)
+table(ADAE$AEDECOD)
+```
+
+Without the app:
+
+```{r, eval = FALSE}
+neue <- load_teal_neue_data(cache_global = TRUE)
+names(neue$datasets)
+```
+
+Turn the copy off with `options(teal_neue.cache_global = FALSE)` or
+`run_app(cache_global = FALSE)`.
+
+## Settings
+
+Everything is configured with R options (see `?teal_neue_options`) or the
+equivalent arguments of `run_app()`:
+
+```{r, eval = FALSE}
+# freshly generated synthetic data: 200 subjects, seed 7
+run_app(source = "synthetic", synthetic = list(N = 200, seed = 7))
+
+# your own ADaM data as parquet files
+run_app(source = "parquet", parquet_dir = "path/to/adam")
+
+# force a rebuild of the cached data
+options(teal_neue.refresh_cache = TRUE)
+```
+
+See `vignette("data-sources", package = "teal.neue")` for the data sources, the
+data contract and the cache.
+
+## Look and feel
+
+The app keeps teal's structure and its standard Bootstrap 5 theme. A
+stylesheet and one script on top of it add:
+
+* **A home page**: click the logo (or press `H`). *Study at a glance*
+  summarises the study by arm: key figures, demographics (age, sex, race),
+  safety (subjects with any, serious or severe adverse events, deaths, the
+  most frequent events) and efficacy (overall survival curves, response
+  rates). Point at an arm to highlight it in every widget, hover the
+  survival curves to read them at any time, and follow a widget's link to
+  the module that goes into detail. These figures describe the whole study,
+  before any filter; the modules are where filtered, reproducible analyses
+  happen.
+* **A command bar**: press `Ctrl+K` (`Cmd+K` on a Mac), `/`, or click the
+  search field in the header. Before you type, *Where to?* shows every
+  module in its category, nested as in the menus. Type a few letters of a module
+  (`km`, `ae grade`), a TLG output ID (`aet02`) or an action (`>dark`).
+  `Enter` opens it; `Ctrl/Cmd+Enter` opens it in a new browser tab.
+* **Where am I**: the header shows the path of the current module (for
+  example *Safety Analysis / Adverse Events / AE Summary*); click a part of it
+  to see the other modules of that group.
+* **Links to every view**: the address bar follows the app
+  (`.../#/efficacy-analysis/kaplan-meier-plot`), so views can be bookmarked
+  and shared, and the browser's back button goes to the previous view.
+* **Output tools**: hover a plot to expand it (zoom with the wheel, drag to
+  pan), pin it, compare it, copy it or download it; hover a table to copy it
+  for Excel or download it as CSV.
+* **Comparison**: pin a plot, change a filter, then choose *Compare*: swipe
+  a divider between the two versions, put them side by side, or show their
+  difference (what changed keeps its colour, the rest turns white). Pins stay
+  in a tray (`P`) for the session.
+* **Keyboard shortcuts** for everything; press `?` to see them.
+* **A calm, precise look** ("Instrument"): ruled white panels on a dot-grid
+  canvas, one teal accent, the system font (Inter elsewhere) for text and
+  JetBrains Mono for dataset names, IDs and numbers; a quiet tint per
+  category (blue for Exploratory, terracotta for Safety, green for Efficacy,
+  violet for the TLG Catalog); a dark mode that works.
+* **Appearance** (the sliders button, or `A`): text size, spacing, accent,
+  corners, contrast, canvas and motion, remembered by the browser.
+* **Plots**: an editorial look for every ggplot2 module (large titles, facet
+  labels as headings, a graded ink scale, no tick marks) and
+  `theme_minimal()` as the default theme of the exploratory plots. Both are
+  applied through teal's own settings, so "Show R code" reproduces the plots
+  exactly. In dark mode, plots stay white paper.
+
+```{r, eval = FALSE}
+options(teal_neue.color_mode = "dark")  # default mode for first-time visitors ("light")
+options(teal_neue.motion = FALSE)       # no animations
+options(teal_neue.ggtheme = "bw")       # another default plot theme (NULL: module defaults)
+options(teal_neue.style = FALSE)        # the plain teal look of the source templates
+```
+
+To change the plot typography, set teal's own option, which teal_neue then
+leaves alone:
+
+```{r, eval = FALSE}
+options(teal.ggplot2_args = teal.widgets::ggplot2_args(
+  labs = list(caption = "MY STUDY"),
+  theme = teal_neue_plot_theme_args()
+))
+```

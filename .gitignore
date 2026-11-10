@@ -4,7 +4,7 @@
 .Ruserdata
 cache/*
 renv/*
-.DS_Store
+*.DS_Store*
 .git/*
 inst/doc
 /doc/

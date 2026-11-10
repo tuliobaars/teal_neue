@@ -1,17 +1,22 @@
 # Module configuration: the three teal.gallery templates (inst/templates/)
 # as tab groups, plus the shared pages. Module calls are kept as in the
 # templates; see the NOTE comments for the intentional changes.
+#
+# The exploratory plot modules are created through teal_neue_plot_module()
+# (R/plot_theme.R), which only adds the app's default ggplot2 theme
+# (option teal_neue.ggtheme) to modules that support it.
 
 #' All app modules
-#' @param data The app's `teal_data` (see [build_lumen_teal_data()]).
+#' @param data The app's `teal_data` (see [build_teal_neue_data()]).
 #' @noRd
-lumen_modules <- function(data) {
-  source <- data[[".lumen"]]$source
+teal_neue_modules <- function(data) {
+  source <- data[[".teal_neue"]]$source
   all_modules <- modules(
     module_app_info(source),
     tm_data_table("Data Table"),
+    modules_tlg_catalog(datanames = names(data)),
     tm_variable_browser("Variable Browser"),
-    modules_exploratory(lumen_file_viewer_paths(source)),
+    modules_exploratory(teal_neue_file_viewer_paths(source)),
     modules_safety(data),
     modules_efficacy(data)
   )
@@ -24,33 +29,42 @@ lumen_modules <- function(data) {
 
 #' Front page
 #' @noRd
-module_app_info <- function(lumen_source) {
+module_app_info <- function(teal_neue_source) {
   tm_front_page(
     label = "App Info",
     header_text = c(
       "About this app" = paste(
-        "Lumen brings together exploratory, safety and efficacy analyses of a clinical trial in one place.",
+        "teal_neue brings together exploratory, safety and efficacy analyses of a clinical trial in one place.",
         "Use the tabs to move between sections; each analysis opens with the population used in its",
-        "source template (safety population for Safety, intent-to-treat population for Efficacy)."
+        "source template (safety population for Safety, intent-to-treat population for Efficacy).",
+        "The TLG Catalog tab reproduces every table, listing and graph of the TLG Catalog on the filtered data, one page per topic.",
+        "Press Ctrl+K (Cmd+K on a Mac) anywhere to jump to any module or TLG output by name, and ? to see every keyboard shortcut.",
+        "Click the logo (or press H) to come back here: Study at a glance summarises the whole study by arm, before any filter.",
+        "Hover a plot or a table for its tools (expand, pin for comparison, copy, download).",
+        "The sun/moon button in the header switches between light and dark mode; your browser remembers the choice."
       ),
-      "Info about input data source" = switch(lumen_source$source,
+      "Info about input data source" = switch(teal_neue_source$source,
         bundled = paste(
           "This app uses the synthetic CDISC ADaM datasets bundled with the `random.cdisc.data` R package.",
           "Adverse event terms were mapped from placeholder codes to illustrative MedDRA-style names."
         ),
         synthetic = paste0(
           "This app uses synthetic CDISC ADaM datasets freshly generated with the `random.cdisc.data` R package ",
-          "(", lumen_source$synthetic$N, " subjects, seed ", lumen_source$synthetic$seed, "). ",
+          "(", teal_neue_source$synthetic$N, " subjects, seed ", teal_neue_source$synthetic$seed, "). ",
           "Adverse event terms were mapped from placeholder codes to illustrative MedDRA-style names."
         ),
-        parquet = paste0("This app uses ADaM datasets read from the parquet files in `", lumen_source$parquet_dir, "`.")
+        parquet = paste0("This app uses ADaM datasets read from the parquet files in `", teal_neue_source$parquet_dir, "`.")
       )
     ),
     tables = list(
       `App sections` = data.frame(
-        Section = c("Exploratory Analysis", "Safety Analysis", "Efficacy Analysis"),
-        `Default population` = c("All subjects", "Safety population (SAFFL = Y)", "Intent-to-treat (ITTFL = Y)"),
+        Section = c("TLG Catalog", "Exploratory Analysis", "Safety Analysis", "Efficacy Analysis"),
+        `Default population` = c(
+          "As in the TLG Catalog (safety or intent-to-treat population, per output)",
+          "All subjects", "Safety population (SAFFL = Y)", "Intent-to-treat (ITTFL = Y)"
+        ),
         Datasets = c(
+          "All datasets, plus ADPC, ADPP, ADAB, ADMH, ADHY examples",
           "ADSL, ADRS, ADLB, ADLBPCA",
           "ADSL, ADAE, ADAETTE, ADEX, ADLB, ADEG, ADVS, ADCM",
           "ADSL, ADTTE, ADRS_EFF, ADQS"
@@ -67,11 +81,11 @@ module_app_info <- function(lumen_source) {
 #' Files shown by the File viewer: the parquet data folder when that source is
 #' used, otherwise the installed package files (always present).
 #' @noRd
-lumen_file_viewer_paths <- function(source) {
+teal_neue_file_viewer_paths <- function(source) {
   if (identical(source$source, "parquet")) {
     list("Parquet data folder" = source$parquet_dir)
   } else {
-    list("Lumen package files" = system.file(package = "lumen"))
+    list("teal_neue package files" = system.file(package = "teal.neue"))
   }
 }
 
@@ -176,23 +190,28 @@ modules_exploratory <- function(file_viewer_paths) {
       input_path = file_viewer_paths
     ),
     tm_missing_data("Missing Data"),
-    tm_g_distribution(
+    teal_neue_plot_module(
+      tm_g_distribution,
       "Distribution",
       dist_var = pick_adsl_numeric_bmrkr1,
       strata_var = pick_adsl_factor,
       group_var = pick_adsl_factor
     ),
-    tm_outliers(
+    teal_neue_plot_module(
+      tm_outliers,
       "Outliers",
       outlier_var = pick_adlb_outlier,
       categorical_var = pick_adlb_categorical
     ),
-    tm_g_association(
+    teal_neue_plot_module(
+      tm_g_association,
       label = "Association",
       ref = pick_adsl_age,
       vars = pick_adsl_armcd_multi
     ),
-    tm_g_bivariate(
+    # NOTE: the template fixed ggtheme = "gray"; the app-wide default is used instead
+    teal_neue_plot_module(
+      tm_g_bivariate,
       label = "Bivariate Plots",
       x = pick_adsl_age,
       y = pick_adlb_aval,
@@ -200,16 +219,17 @@ modules_exploratory <- function(file_viewer_paths) {
       col_facet = pick_adsl_factor,
       use_density = FALSE,
       plot_height = c(600L, 200L, 2000L),
-      ggtheme = "gray",
       transformators = list(adlb_lab_filter, adlb_visit_filter)
     ),
-    tm_a_regression(
+    teal_neue_plot_module(
+      tm_a_regression,
       label = "Regression",
       response = pick_adsl_numeric_bmrkr1,
       regressor = pick_adrs_response,
       transformators = list(adrs_endpoint_filter)
     ),
-    tm_g_response(
+    teal_neue_plot_module(
+      tm_g_response,
       label = "Response Plot",
       response = pick_adrs_response_fct,
       x = pick_adsl_strata2,
@@ -222,14 +242,17 @@ modules_exploratory <- function(file_viewer_paths) {
       label = "Scatterplot Matrix",
       variables = list(pick_adsl_multi)
     ),
-    tm_g_scatterplot(
+    # NOTE: smaller, slightly transparent points (template: size = 3, alpha = 1)
+    # so overlapping subjects stay visible
+    teal_neue_plot_module(
+      tm_g_scatterplot,
       "Scatterplot",
       x = pick_adsl_age,
       y = pick_adsl_bmrkr1,
       row_facet = pick_adsl_factor,
       col_facet = pick_adsl_factor,
       color_by = pick_adsl_factor,
-      size = 3, alpha = 1,
+      size = 2.5, alpha = 0.8,
       plot_height = c(600L, 200L, 2000L)
     ),
     tm_t_crosstable(
@@ -237,7 +260,8 @@ modules_exploratory <- function(file_viewer_paths) {
       x = pick_adsl_strata2,
       y = pick_adsl_armcd
     ),
-    tm_a_pca(
+    teal_neue_plot_module(
+      tm_a_pca,
       "Principal Component Analysis",
       dat = pick_adlbpca,
       plot_height = c(600L, 200L, 2000L),
@@ -458,7 +482,7 @@ modules_safety <- function(data) {
 #' @noRd
 modules_efficacy <- function(data) {
   ADSL <- data[["ADSL"]]
-  char_vars_asl <- data[[".lumen"]]$meta$adsl_char_vars
+  char_vars_asl <- data[[".teal_neue"]]$meta$adsl_char_vars
 
   # Efficacy uses the *planned* (randomised) arm
   arm_vars_efficacy <- c("ARMCD", "ARM")

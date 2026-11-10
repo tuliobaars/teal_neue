@@ -3,7 +3,7 @@
 # (see preprocess.R).
 
 #' @noRd
-lumen_data_sources <- function() c("bundled", "synthetic", "parquet")
+teal_neue_data_sources <- function() c("bundled", "synthetic", "parquet")
 
 #' Ingest raw ADaM datasets
 #'
@@ -17,7 +17,7 @@ lumen_data_sources <- function() c("bundled", "synthetic", "parquet")
 #' * `"synthetic"`: freshly generated data (`random.cdisc.data::radsl()`,
 #'   `radae()`, ...) using `synthetic = list(N, seed, args)`. A missing or `NA`
 #'   seed draws a random seed once per session (printed in the console and
-#'   stored in option `lumen.synthetic`).
+#'   stored in option `teal_neue.synthetic`).
 #' * `"parquet"`: every ADaM parquet file in `parquet_dir`, named
 #'   `adsl.parquet`, `adae.parquet`, ... or `adsl_adam.parquet`, ...
 #'   (case-insensitive). Other files are ignored. Needs the 'arrow' package.
@@ -30,7 +30,7 @@ lumen_data_sources <- function() c("bundled", "synthetic", "parquet")
 #' @param parquet_dir Folder read by the parquet source.
 #' @return Named list of data.frames (raw datasets). Extra datasets found in a
 #'   parquet folder are kept but reported.
-#' @seealso [lumen_options], [export_adam_parquet()], [validate_adam()]
+#' @seealso [teal_neue_options], [export_adam_parquet()], [validate_adam()]
 #' @examples
 #' raw <- ingest_adam("bundled")
 #' names(raw)
@@ -39,10 +39,10 @@ lumen_data_sources <- function() c("bundled", "synthetic", "parquet")
 #' nrow(small$ADSL)
 #' }
 #' @export
-ingest_adam <- function(source = getOption("lumen.data_source", "bundled"),
-                        synthetic = getOption("lumen.synthetic", list()),
-                        parquet_dir = getOption("lumen.parquet_dir", "cache")) {
-  config <- lumen_source_config(source, synthetic, parquet_dir)
+ingest_adam <- function(source = getOption("teal_neue.data_source", "bundled"),
+                        synthetic = getOption("teal_neue.synthetic", list()),
+                        parquet_dir = getOption("teal_neue.parquet_dir", "cache")) {
+  config <- teal_neue_source_config(source, synthetic, parquet_dir)
   raw <- switch(config$source,
     bundled = ingest_bundled(),
     synthetic = ingest_synthetic(config$synthetic),
@@ -50,7 +50,7 @@ ingest_adam <- function(source = getOption("lumen.data_source", "bundled"),
   )
   extra <- setdiff(names(raw), names(adam_contract()))
   if (length(extra)) {
-    message("[lumen] Datasets read but not used by the app: ", toString(extra))
+    message("[teal_neue] Datasets read but not used by the app: ", toString(extra))
   }
   validate_adam(raw)
   check_app_defaults(raw)
@@ -59,10 +59,10 @@ ingest_adam <- function(source = getOption("lumen.data_source", "bundled"),
 
 #' Resolve and normalise the data-source settings
 #' @noRd
-lumen_source_config <- function(source = getOption("lumen.data_source", "bundled"),
-                                synthetic = getOption("lumen.synthetic", list()),
-                                parquet_dir = getOption("lumen.parquet_dir", "cache")) {
-  source <- match.arg(source, lumen_data_sources())
+teal_neue_source_config <- function(source = getOption("teal_neue.data_source", "bundled"),
+                                    synthetic = getOption("teal_neue.synthetic", list()),
+                                    parquet_dir = getOption("teal_neue.parquet_dir", "cache")) {
+  source <- match.arg(source, teal_neue_data_sources())
   list(
     source = source,
     synthetic = if (source == "synthetic") synthetic_settings(synthetic),
@@ -72,7 +72,7 @@ lumen_source_config <- function(source = getOption("lumen.data_source", "bundled
 
 #' Fingerprint of the data source, used to invalidate the cache
 #' @noRd
-lumen_source_fingerprint <- function(config) {
+teal_neue_source_fingerprint <- function(config) {
   rcd_version <- function() {
     tryCatch(as.character(utils::packageVersion("random.cdisc.data")), error = function(e) NA_character_)
   }
@@ -111,7 +111,7 @@ ingest_bundled <- function() {
 #' Complete and check the synthetic-data settings
 #'
 #' A missing/NA seed means "random": a seed is drawn once and written back to
-#' option `lumen.synthetic`, so every later call in the session (including the
+#' option `teal_neue.synthetic`, so every later call in the session (including the
 #' app's reproducible R code) generates the very same data.
 #' @noRd
 synthetic_settings <- function(settings = list()) {
@@ -123,20 +123,20 @@ synthetic_settings <- function(settings = list()) {
 
   if (random_seed) {
     s$seed <- sample.int(.Machine$integer.max, 1L)
-    options(lumen.synthetic = utils::modifyList(settings, list(seed = s$seed)))
-    message("[lumen] Random synthetic-data seed: ", s$seed,
-            " (set options(lumen.synthetic = list(seed = ", s$seed, ")) to reproduce)")
+    options(teal_neue.synthetic = utils::modifyList(settings, list(seed = s$seed)))
+    message("[teal_neue] Random synthetic-data seed: ", s$seed,
+            " (set options(teal_neue.synthetic = list(seed = ", s$seed, ")) to reproduce)")
   }
 
   if (!is.numeric(s$N) || length(s$N) != 1 || is.na(s$N) || s$N < 1 || s$N != round(s$N)) {
-    stop("[lumen] lumen.synthetic$N must be a single positive whole number.", call. = FALSE)
+    stop("[teal_neue] teal_neue.synthetic$N must be a single positive whole number.", call. = FALSE)
   }
   if (!is.numeric(s$seed) || length(s$seed) != 1) {
-    stop("[lumen] lumen.synthetic$seed must be a single number (or NA for a random seed).", call. = FALSE)
+    stop("[teal_neue] teal_neue.synthetic$seed must be a single number (or NA for a random seed).", call. = FALSE)
   }
   unknown <- setdiff(names(s$args), names(adam_contract()))
   if (!is.list(s$args) || length(unknown)) {
-    stop("[lumen] lumen.synthetic$args must be a list named by dataset (",
+    stop("[teal_neue] teal_neue.synthetic$args must be a list named by dataset (",
          toString(names(adam_contract())), "). Unknown: ", toString(unknown), call. = FALSE)
   }
   s$N <- as.integer(s$N)
@@ -179,17 +179,17 @@ adam_name_from_file <- function(path) {
 #' @noRd
 adam_parquet_files <- function(dir) {
   if (!dir.exists(dir)) {
-    stop("[lumen] Parquet folder not found: ", dir, call. = FALSE)
+    stop("[teal_neue] Parquet folder not found: ", dir, call. = FALSE)
   }
   files <- sort(list.files(dir, pattern = "\\.parquet$", ignore.case = TRUE, full.names = TRUE))
   names(files) <- adam_name_from_file(files)
   files <- files[grepl("^AD[A-Z0-9_]+$", names(files))]
   if (!length(files)) {
-    stop("[lumen] No ADaM parquet files (ad*.parquet or ad*_adam.parquet) in: ", dir, call. = FALSE)
+    stop("[teal_neue] No ADaM parquet files (ad*.parquet or ad*_adam.parquet) in: ", dir, call. = FALSE)
   }
   dup <- unique(names(files)[duplicated(names(files))])
   if (length(dup)) {
-    stop("[lumen] More than one parquet file for: ", toString(dup), " in ", dir, call. = FALSE)
+    stop("[teal_neue] More than one parquet file for: ", toString(dup), " in ", dir, call. = FALSE)
   }
   files
 }
@@ -197,13 +197,13 @@ adam_parquet_files <- function(dir) {
 #' @noRd
 require_arrow <- function(available = requireNamespace("arrow", quietly = TRUE)) {
   if (!isTRUE(available)) {
-    stop("[lumen] The parquet data source needs the 'arrow' package. Install it with:\n",
+    stop("[teal_neue] The parquet data source needs the 'arrow' package. Install it with:\n",
          "  renv::install(\"arrow\"); renv::snapshot()", call. = FALSE)
   }
 }
 
 #' @noRd
-ingest_parquet <- function(dir = getOption("lumen.parquet_dir", "cache")) {
+ingest_parquet <- function(dir = getOption("teal_neue.parquet_dir", "cache")) {
   require_arrow()
   files <- adam_parquet_files(dir)
   lapply(files, arrow::read_parquet)
@@ -233,7 +233,7 @@ export_adam_parquet <- function(datasets, dir, overwrite = FALSE) {
   dir.create(dir, showWarnings = FALSE, recursive = TRUE)
   paths <- file.path(dir, paste0(tolower(names(datasets)), ".parquet"))
   if (!overwrite && any(file.exists(paths))) {
-    stop("[lumen] Files already exist (use overwrite = TRUE): ", toString(basename(paths[file.exists(paths)])), call. = FALSE)
+    stop("[teal_neue] Files already exist (use overwrite = TRUE): ", toString(basename(paths[file.exists(paths)])), call. = FALSE)
   }
   for (i in seq_along(datasets)) arrow::write_parquet(datasets[[i]], paths[[i]])
   invisible(stats::setNames(paths, names(datasets)))
@@ -310,7 +310,7 @@ validate_adam <- function(raw, contract = adam_contract()) {
     problems <- c(problems, "ADSL has duplicated USUBJID values (must be one row per subject)")
   }
   if (length(problems)) {
-    stop("[lumen] The ADaM data does not meet the app's data contract:\n  - ",
+    stop("[teal_neue] The ADaM data does not meet the app's data contract:\n  - ",
          paste(problems, collapse = "\n  - "), call. = FALSE)
   }
 
@@ -320,7 +320,7 @@ validate_adam <- function(raw, contract = adam_contract()) {
     length(setdiff(unique(as.character(raw[[ds]]$USUBJID)), as.character(adsl$USUBJID)))
   }, integer(1))
   if (any(orphans > 0)) {
-    warning("[lumen] Subjects without an ADSL record: ",
+    warning("[teal_neue] Subjects without an ADSL record: ",
             toString(sprintf("%s (%d)", names(orphans)[orphans > 0], orphans[orphans > 0])), call. = FALSE)
   }
   invisible(TRUE)
@@ -356,7 +356,7 @@ check_app_defaults <- function(raw, defaults = adam_app_defaults()) {
     if (length(absent)) sprintf("%s$%s: %s", d[[1]], d[[2]], toString(absent))
   }))
   if (length(missing)) {
-    warning("[lumen] Values used as default selections in the app are not in the data ",
+    warning("[teal_neue] Values used as default selections in the app are not in the data ",
             "(update app.R): ", paste(missing, collapse = "; "), call. = FALSE)
   }
   invisible(missing)

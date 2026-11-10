@@ -1,9 +1,9 @@
 # Properties the pre-processing must satisfy for *any* valid input data.
-# Each block runs once per data scenario (see helper-lumen.R).
+# Each block runs once per data scenario (see helper-teal-neue.R).
 
 label_of <- function(x) attr(x, "label", exact = TRUE)
 
-for (sc in lumen_scenarios()) {
+for (sc in teal_neue_scenarios()) {
   test_that(sprintf("[%s] output has exactly the datasets the app expects", sc), {
     out <- scenario(sc)$processed
     expect_setequal(

@@ -2,21 +2,21 @@
 % Please edit documentation in R/run_app.R
 \name{run_app}
 \alias{run_app}
-\alias{lumen_app}
-\title{Run the Lumen app}
+\alias{teal_neue_app}
+\title{Run the teal_neue app}
 \usage{
 run_app(
-  source = getOption("lumen.data_source", "bundled"),
-  synthetic = getOption("lumen.synthetic", list()),
-  parquet_dir = getOption("lumen.parquet_dir", "cache"),
-  cache_global = getOption("lumen.cache_global", TRUE)
+  source = getOption("teal_neue.data_source", "bundled"),
+  synthetic = getOption("teal_neue.synthetic", list()),
+  parquet_dir = getOption("teal_neue.parquet_dir", "cache"),
+  cache_global = getOption("teal_neue.cache_global", TRUE)
 )
 
-lumen_app(
-  source = getOption("lumen.data_source", "bundled"),
-  synthetic = getOption("lumen.synthetic", list()),
-  parquet_dir = getOption("lumen.parquet_dir", "cache"),
-  cache_global = getOption("lumen.cache_global", FALSE)
+teal_neue_app(
+  source = getOption("teal_neue.data_source", "bundled"),
+  synthetic = getOption("teal_neue.synthetic", list()),
+  parquet_dir = getOption("teal_neue.parquet_dir", "cache"),
+  cache_global = getOption("teal_neue.cache_global", FALSE)
 )
 }
 \arguments{
@@ -33,14 +33,15 @@ lumen_app(
 console access? \code{run_app()} defaults to \code{TRUE}.}
 }
 \value{
-\code{lumen_app()}: a teal app (list with \code{ui} and \code{server}).
+\code{teal_neue_app()}: a teal app (list with \code{ui} and \code{server}).
 \code{run_app()}: a \code{shiny.appobj}.
 }
 \description{
-\code{lumen_app()} builds the teal app: data (\code{\link[=build_lumen_teal_data]{build_lumen_teal_data()}}),
+\code{teal_neue_app()} builds the teal app: data (\code{\link[=build_teal_neue_data]{build_teal_neue_data()}}),
 the exploratory, safety and efficacy module groups, module-specific filters
 (safety modules start on the safety population, efficacy modules on the
-intent-to-treat population) and the header with the dark mode toggle.
+intent-to-treat population), the header with the dark mode toggle and the
+teal_neue look (see the "Look and feel" section of \link{teal_neue_options}).
 \code{run_app()} wraps it in a Shiny app object, which starts the app when
 printed at the console (or when returned from an \code{app.R} file).
 }
@@ -52,5 +53,5 @@ run_app(source = "parquet", parquet_dir = "path/to/adam")
 }
 }
 \seealso{
-\link{lumen_options} for all settings.
+\link{teal_neue_options} for all settings.
 }
