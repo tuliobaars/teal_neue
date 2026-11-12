@@ -10,7 +10,6 @@
 ^cache$
 ^doc$
 ^Meta$
-^docs$
 ^\.github$
 ^\.git$
 ^\.gitignore$

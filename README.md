@@ -13,6 +13,28 @@ fonts, cleaner plots and a proper dark mode. It is still recognisably teal.
 
 The R package is called `teal.neue` (R package names cannot contain `_`).
 
+<!-- taiga:begin -->
+## Feature tour
+
+| | | |
+|---|---|---|
+| ![Study at a glance](docs/features/01-home.jpg)<br>**Study at a glance** | ![Analysis module](docs/features/03-analysis-module.jpg)<br>**Analysis module** | ![Command bar](docs/features/04-command-bar.jpg)<br>**Command bar** |
+| ![TLG Catalog](docs/features/07-tlg-catalog.jpg)<br>**TLG Catalog** | ![Appearance](docs/features/06-appearance.jpg)<br>**Appearance** | ![Dark mode](docs/features/02-home-dark.jpg)<br>**Dark mode** |
+
+*Screenshots from a test bench built from this package's own UI code and assets (no R runtime was available where they were made). See [docs/DESIGN.md](docs/DESIGN.md#feature-screenshots).* All 9 screenshots, with captions: [docs/DESIGN.md](docs/DESIGN.md).
+
+### Delivery formats
+
+| Format | Status | Entry point |
+|---|---|---|
+| Shiny | ✓ | `run_app()`, `teal_neue_app()`, `app.R` |
+| Quarto | specified, not yet built | planned `teal_neue_export_quarto(outputs, data)` |
+| HTML | specified, not yet built | planned `teal_neue_export_html(data)` |
+
+Design system: **Neue** (minimalist, high-density enterprise), from the **taiga** R package in [`../taiga-design-system/`](../taiga-design-system/README.md): styleguide, requirements, tokens and the Shiny · Quarto · HTML delivery model (`taiga::taiga_guide()`, `taiga::taiga_export_html()`…). This project's page is [docs/DESIGN.md](docs/DESIGN.md).
+
+<!-- taiga:end -->
+
 ## Features
 
 - **One app, three sections**: Exploratory, Safety and Efficacy analysis tabs,
